@@ -1,0 +1,154 @@
+package abtesstr
+
+import java.time.Instant
+import scala.Predef.???
+import scala.collection.immutable.NumericRange
+import scala.math.Ordering.Long.mkOrderingOps
+import scala.util.chaining.*
+
+opaque type TestSpaceId <: String = String
+
+object TestSpaceId {
+  def apply(value: String): TestSpaceId = value
+}
+
+opaque type ExperimentId <: String = String
+
+object ExperimentId {
+  def apply(value: String): ExperimentId = value
+}
+
+opaque type SpaceFraction <: Double = Double
+
+object SpaceFraction {
+  def apply(value: Double): SpaceFraction = value
+
+  extension (x: SpaceFraction) {
+    def length: FragmentLength = FragmentLength((x * SpaceSize).toLong)
+  }
+}
+
+opaque type FragmentLength <: Long = Long
+
+object FragmentLength {
+  def apply(value: Long): FragmentLength = {
+    Predef.assert(value >= 0, "Fragment length must be positive")
+    value
+  }
+
+  def min(a: FragmentLength, b: FragmentLength): FragmentLength = a.min(b)
+
+  extension (x: FragmentLength) {
+    def minus(other: FragmentLength): FragmentLength = apply(x - other)
+
+    def asFraction: SpaceFraction = SpaceFraction(x.toDouble / SpaceSize)
+  }
+}
+
+opaque type UserId <: String = String
+
+object UserId {
+  def apply(value: String): UserId = value
+}
+
+case class SpaceFragment(start: Point, end: Point) {
+  Predef.assert(start <= end, "end must be after start")
+
+  def length: FragmentLength       = FragmentLength(end - start + 1)
+  def spaceFraction: SpaceFraction = SpaceFraction(length.toDouble / SpaceSize)
+
+  def contains(point: Point): Boolean = point >= start && point <= end
+}
+
+object SpaceFragment {
+
+  def wholeSpace: SpaceFragment = SpaceFragment(Point.zero, Point.max)
+
+  def ofFraction(start: Point, fraction: SpaceFraction): SpaceFragment = {
+    SpaceFragment.ofLength(start, fraction.length)
+  }
+
+  def ofLength(start: Point, length: FragmentLength): SpaceFragment = {
+    SpaceFragment(start, start.add(length - 1))
+  }
+
+  def remaining(start: Point): SpaceFragment = SpaceFragment(start, Point.max)
+
+}
+
+opaque type Point <: Long = Long
+
+object Point {
+  def apply(value: Long): Point = {
+    Predef.assert(value >= 0, "Points can only be positive")
+    Predef.assert(value < SpaceSize, s"Points have to be below ${SpaceSize}")
+    value
+  }
+  def zero                      = Point(0)
+  def max                       = Point(SpaceSize - 1)
+
+  given Ordering[Point] = Ordering.by(x => x: Long)
+
+  extension (x: Point) {
+    def add(other: Long): Point = Math.addExact(x, other)
+    def sub(other: Long): Point = Math.subtractExact(x, other)
+  }
+}
+
+// start inclusive, end exclusive
+// TODO rethink
+case class TimePeriod(start: Instant, end: Option[Instant]) {
+  Predef.assert(end.forall(_.isAfter(start)), "end must be after start")
+  
+  def isActive(at: Instant): Boolean =
+    !at.isBefore(start) && end.forall(at.isBefore)
+}
+
+val SpaceSize: Long = Long.MaxValue
+
+case class Experiment(
+    experimentId: ExperimentId,
+    period: TimePeriod,
+    bucket: SpaceFragment,
+)
+
+case class TestSpace(
+    id: TestSpaceId,
+    experiments: List[Experiment],
+) {
+  def activeRanges(at: Instant): List[SpaceFragment] =
+    experiments.filter(_.period.isActive(at)).map(_.bucket)
+
+  def availableRanges(at: Instant): List[SpaceFragment] = {
+    val used      = activeRanges(at).sortBy(_.start)
+    val gaps      = used
+      .sliding(2)
+      .flatMap {
+        case List(a, b) => Option.when(a.end != b.start)(SpaceFragment(a.end.add(1), b.start.sub(1)))
+        case List(_)    => None
+      }
+      .toList
+    val remaining = used.lastOption match {
+      case Some(last) => Option.when(last.end < Point.max)(SpaceFragment.remaining(last.end.add(1)))
+      case None       => Some(SpaceFragment.wholeSpace)
+    }
+    gaps ++ remaining
+  }
+
+  def findFit(size: SpaceFraction, at: Instant): List[SpaceFragment] = {
+    val requiredSpace = size.length
+    availableRanges(at)
+      .foldLeft((requiredSpace, List.empty[SpaceFragment])) { case ((remainingRequiredSpace, acc), freeFragment) =>
+        if (remainingRequiredSpace > 0) {
+          val usedFragment = SpaceFragment.ofLength(freeFragment.start, FragmentLength.min(remainingRequiredSpace, freeFragment.length))
+          (remainingRequiredSpace.minus(usedFragment.length), acc :+ usedFragment)
+        } else {
+          (remainingRequiredSpace, acc)
+        }
+      }
+      ._2
+    // TODO fail if not provided all space.
+  }
+
+  def availableSpace(at: Instant): SpaceFraction = SpaceFraction(availableRanges(at).map(_.spaceFraction).sum)
+}

@@ -2,7 +2,8 @@
 
 **abtesstr** is a minimal, deterministic A/B testing helper written in Scala.
 It allows you to build a model that assigns users to experiments.
-Model definition happens in Scala while evaluation can happen in any other language.
+Model definition happens in Scala while evaluation can happen in any other 
+language as the model is prepared for serialization.
 
 > [!WARNING]  
 > This is a Proof Of Concept for now.

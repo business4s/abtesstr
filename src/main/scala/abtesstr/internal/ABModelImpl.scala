@@ -13,8 +13,12 @@ case class ABModelImpl(spaces: Map[TestSpaceId, TestSpace], clock: Clock, hasher
   }
 
   override def removeTestSpace(id: TestSpaceId): ABModel = {
-    // TODO error if started experiments exist
-    ???
+    this.copy(spaces = spaces.updatedWith(id)({
+      case Some(space) =>
+        if (space.activeRanges(clock.instant()).nonEmpty) throw new IllegalArgumentException("Can't remove a space with active experiments")
+        else None
+      case None        => None
+    }))
   }
 
   override def listTestSpaces(): List[TestSpaceId] = spaces.keys.toList
@@ -33,17 +37,22 @@ case class ABModelImpl(spaces: Map[TestSpaceId, TestSpace], clock: Clock, hasher
       start: Option[Instant],
       end: Option[Instant],
   ): ABModel = {
-    val sizeSpaceFragments = SpaceFraction(size)
-    val period             = TimePeriod(start.getOrElse(now), end)
-    spaces.get(testSpaceId).toList.flatMap(_.findFit(sizeSpaceFragments, now)) match {
-      case List()  => throw new IllegalArgumentException("Not enough contiguous space for experiment")
-      case buckets =>
-        val newExps = buckets.map(SpaceFragment => Experiment(experimentId, period, SpaceFragment))
-        val updated = spaces.map {
-          case (nsId, ns) if nsId == testSpaceId => nsId -> ns.copy(experiments = ns.experiments ++ newExps)
-          case ns                                => ns
+    if (size == SpaceFraction.zero) throw new IllegalArgumentException(s"Experiment size cannot be zero")
+    val period = TimePeriod(start.getOrElse(now), end)
+    spaces.get(testSpaceId) match {
+      case None        => throw new IllegalArgumentException(s"Test space ${testSpaceId} not found")
+      case Some(space) =>
+        val buckets = space.findFit(size, now)
+        if (buckets.isEmpty)
+          throw new IllegalArgumentException(s"Not enough space for experiment. Required ${size}, available ${space.availableSpace(now)}")
+        else {
+          val newExps = buckets.map(spaceFragment => Experiment(experimentId, period, spaceFragment))
+          val updated = spaces.map {
+            case (nsId, ns) if nsId == testSpaceId => nsId -> ns.copy(experiments = ns.experiments ++ newExps)
+            case ns                                => ns
+          }
+          this.copy(spaces = updated)
         }
-        this.copy(spaces = updated)
     }
   }
 

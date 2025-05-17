@@ -116,9 +116,16 @@ class TestSpaceTest extends AnyFreeSpec with Matchers with ScalaCheckPropertyChe
     }
 
     "find fit should always return the requested fraction" in {
-      forAll(genSpaceFraction(0.2), genTestSpace) { (fraction, testSpace) => 
-        val nextFit   = testSpace.findFit(fraction, now)
+      forAll(genSpaceFraction(max = 0.2), genTestSpace) { (fraction, testSpace) =>
+        val nextFit = testSpace.findFit(fraction, now)
         assert(nextFit.map(_.length).sum == fraction.length)
+      }
+    }
+    "availableSpace should be 1 - sum of all active experiments" in {
+      forAll(genTestSpace) { testSpace =>
+        val now = Instant.now() // TODO generate as well
+        assert(testSpace.availableRanges(now).map(_.length).sum == SpaceSize - testSpace.activeRanges(now).map(_.length).sum)
+        assert(testSpace.availableSpace(now) == 1 - testSpace.activeExperiments(now).map(_.bucket.spaceFraction).sum)
       }
     }
   }

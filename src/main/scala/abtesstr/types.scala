@@ -22,10 +22,13 @@ opaque type SpaceFraction <: Double = Double
 
 object SpaceFraction {
   def apply(value: Double): SpaceFraction = value
+  def zero: SpaceFraction = SpaceFraction(0.0)
 
   extension (x: SpaceFraction) {
     def length: FragmentLength = FragmentLength((x * SpaceSize).toLong)
   }
+
+//  given Fractional[SpaceFraction] & Ordering[SpaceFraction] = Numeric.DoubleIsFractional
 }
 
 opaque type FragmentLength <: Long = Long
@@ -87,11 +90,12 @@ object Point {
   def zero                      = Point(0)
   def max                       = Point(SpaceSize - 1)
 
-  given Ordering[Point] = Ordering.by(x => x: Long)
+  given Ordering[Point] & Integral[Point] = Numeric.LongIsIntegral
 
   extension (x: Point) {
-    def add(other: Long): Point = Math.addExact(x, other)
-    def sub(other: Long): Point = Math.subtractExact(x, other)
+    def next = Point(x + 1)
+    def add(other: Long): Point = Point(Math.addExact(x, other))
+    def sub(other: Long): Point = Point(Math.subtractExact(x, other))
   }
 }
 
@@ -117,19 +121,19 @@ case class TestSpace(
     experiments: List[Experiment],
 ) {
   def activeRanges(at: Instant): List[SpaceFragment] =
-    experiments.filter(_.period.isActive(at)).map(_.bucket)
+    activeExperiments(at).map(_.bucket)
 
   def availableRanges(at: Instant): List[SpaceFragment] = {
     val used      = activeRanges(at).sortBy(_.start)
     val gaps      = used
       .sliding(2)
       .flatMap {
-        case List(a, b) => Option.when(a.end != b.start)(SpaceFragment(a.end.add(1), b.start.sub(1)))
+        case List(a, b) => Option.when(b.start - a.end > 1)(SpaceFragment(a.end.next, b.start.sub(1)))
         case List(_)    => None
       }
       .toList
     val remaining = used.lastOption match {
-      case Some(last) => Option.when(last.end < Point.max)(SpaceFragment.remaining(last.end.add(1)))
+      case Some(last) => Option.when(last.end < Point.max)(SpaceFragment.remaining(last.end.next))
       case None       => Some(SpaceFragment.wholeSpace)
     }
     gaps ++ remaining
@@ -151,4 +155,9 @@ case class TestSpace(
   }
 
   def availableSpace(at: Instant): SpaceFraction = SpaceFraction(availableRanges(at).map(_.spaceFraction).sum)
+
+  def activeExperiments(at: Instant): List[Experiment] = {
+    experiments.filter(_.period.isActive(at))
+  }
+
 }

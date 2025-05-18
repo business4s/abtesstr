@@ -49,17 +49,17 @@ trait Generators {
 
   val genExperimentId = Gen.uuid.map(_.toString).map(ExperimentId(_))
 
-  val genExperiment: SpaceFragment => Gen[Experiment] = { fragment =>
+  val genExperiment: SpaceFragment => Gen[ExperimentRun] = { fragment =>
     for {
       id    <- Gen.uuid.map(_.toString)
       now    = Instant.now()
       period = TimePeriod(now, None) // placeholder period
-    } yield Experiment(ExperimentId(id), period, fragment)
+    } yield ExperimentRun(ExperimentId(id), period, fragment)
   }
 
-  val genExperimentList: Gen[List[Experiment]] =
+  val genExperimentList: Gen[List[ExperimentRun]] =
     genNonOverlappingFragments.flatMap { fragments =>
-      Gen.sequence[List[Experiment], Experiment](fragments.map(genExperiment))
+      Gen.sequence[List[ExperimentRun], ExperimentRun](fragments.map(genExperiment))
     }
 
   val genTestSpace: Gen[TestSpace] =

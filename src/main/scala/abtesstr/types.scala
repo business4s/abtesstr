@@ -22,7 +22,7 @@ opaque type SpaceFraction <: Double = Double
 
 object SpaceFraction {
   def apply(value: Double): SpaceFraction = value
-  def zero: SpaceFraction = SpaceFraction(0.0)
+  def zero: SpaceFraction                 = SpaceFraction(0.0)
 
   extension (x: SpaceFraction) {
     def length: FragmentLength = FragmentLength((x * SpaceSize).toLong)
@@ -93,7 +93,7 @@ object Point {
   given Ordering[Point] & Integral[Point] = Numeric.LongIsIntegral
 
   extension (x: Point) {
-    def next = Point(x + 1)
+    def next                    = Point(x + 1)
     def add(other: Long): Point = Point(Math.addExact(x, other))
     def sub(other: Long): Point = Point(Math.subtractExact(x, other))
   }
@@ -103,14 +103,14 @@ object Point {
 // TODO rethink
 case class TimePeriod(start: Instant, end: Option[Instant]) {
   Predef.assert(end.forall(_.isAfter(start)), "end must be after start")
-  
+
   def isActive(at: Instant): Boolean =
     !at.isBefore(start) && end.forall(at.isBefore)
 }
 
 val SpaceSize: Long = Long.MaxValue
 
-case class Experiment(
+case class ExperimentRun(
     experimentId: ExperimentId,
     period: TimePeriod,
     bucket: SpaceFragment,
@@ -118,7 +118,7 @@ case class Experiment(
 
 case class TestSpace(
     id: TestSpaceId,
-    experiments: List[Experiment],
+    experiments: List[ExperimentRun],
 ) {
   def activeRanges(at: Instant): List[SpaceFragment] =
     activeExperiments(at).map(_.bucket)
@@ -139,9 +139,9 @@ case class TestSpace(
     gaps ++ remaining
   }
 
-  def findFit(size: SpaceFraction, at: Instant): List[SpaceFragment] = {
+  def findFit(size: SpaceFraction, at: Instant): Option[List[SpaceFragment]] = {
     val requiredSpace = size.length
-    availableRanges(at)
+    val (remaining, fragments) = availableRanges(at)
       .foldLeft((requiredSpace, List.empty[SpaceFragment])) { case ((remainingRequiredSpace, acc), freeFragment) =>
         if (remainingRequiredSpace > 0) {
           val usedFragment = SpaceFragment.ofLength(freeFragment.start, FragmentLength.min(remainingRequiredSpace, freeFragment.length))
@@ -150,13 +150,12 @@ case class TestSpace(
           (remainingRequiredSpace, acc)
         }
       }
-      ._2
-    // TODO fail if not provided all space.
+    Option.when(remaining <= 0)(fragments)
   }
 
   def availableSpace(at: Instant): SpaceFraction = SpaceFraction(availableRanges(at).map(_.spaceFraction).sum)
 
-  def activeExperiments(at: Instant): List[Experiment] = {
+  def activeExperiments(at: Instant): List[ExperimentRun] = {
     experiments.filter(_.period.isActive(at))
   }
 

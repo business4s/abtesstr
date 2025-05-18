@@ -5,19 +5,13 @@ import abtesstr.internal.Error.*
 
 import java.time.{Clock, Instant}
 
-trait SyntaxFlavour {
-
-  type TimeReliant[A]
-  type WithErr[E, A]
-
-}
-
 trait TemporalContext {
   def now(): Instant
 }
 
 object TemporalContext {
   def fixed(t: Instant): TemporalContext = () => t
+  def live(t: Clock): TemporalContext = () => t.instant()
 }
 
 type Result[E, A] = TemporalContext ?=> Either[E, A]
@@ -55,7 +49,7 @@ object Error {
 
 }
 
-case class RawABModel(spaces: Map[TestSpaceId, TestSpace], hasher: Hasher) extends ABModel[TemporalContext => _, Either] {
+case class RawABModel(spaces: Map[TestSpaceId, TestSpace], hasher: Hasher) extends ABModel[[t] =>> TemporalContext => t, Either] {
 
   def addTestSpace(id: TestSpaceId): Either[AddTestSpaceError, RawABModel] = {
     if (spaces.contains(id)) Left(TestSpaceAlreadyExists(id))
@@ -180,8 +174,9 @@ case class RawABModel(spaces: Map[TestSpaceId, TestSpace], hasher: Hasher) exten
   }
 }
 
-object RawRawABModel {
-  def fromDTO(dto: ABModelDTO, clock: Clock): RawABModel = {
+object RawABModel {
+  // TODO errors
+  def fromDTO(dto: ABModelDTO): RawABModel = {
     val spaces: Map[TestSpaceId, TestSpace] =
       dto.experiments
         .groupMap(x => TestSpaceId(x.testSpaceId))(e => {

@@ -13,8 +13,8 @@ object ABModelDTO {
   case class Experiment(
       testSpaceId: String,
       experimentId: String,
-      start: Instant,
-      end: Option[Instant],
+      startIncl: Instant,
+      endExcl: Option[Instant],
       bucketStart: Long,
       bucketEnd: Long,
   )

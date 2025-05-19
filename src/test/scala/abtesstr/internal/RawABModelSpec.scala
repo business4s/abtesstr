@@ -226,8 +226,8 @@ class RawABModelSpec extends AnyFreeSpec with ScalaCheckPropertyChecks with Gene
               ABModelDTO.Experiment(
                 testSpaceId = "test-space",
                 experimentId = "exp1",
-                start = fixedInstant.minusSeconds(100),
-                end = None,
+                startIncl = fixedInstant.minusSeconds(100),
+                endExcl = None,
                 bucketStart = 0L,
                 bucketEnd = SpaceSize / 2,
               ),
@@ -245,8 +245,8 @@ class RawABModelSpec extends AnyFreeSpec with ScalaCheckPropertyChecks with Gene
           assert(experiments.size == 1)
           val experiment  = experiments.head
           assert(experiment.experimentId == ExperimentId("exp1"))
-          assert(experiment.period.start == fixedInstant.minusSeconds(100))
-          assert(experiment.period.end == None)
+          assert(experiment.period.startIncl == fixedInstant.minusSeconds(100))
+          assert(experiment.period.endExcl == None)
           assert(experiment.bucket.start == 0L)
           assert(experiment.bucket.end == SpaceSize / 2)
         }
@@ -288,8 +288,8 @@ class RawABModelSpec extends AnyFreeSpec with ScalaCheckPropertyChecks with Gene
           val dtoExperiment = dto.experiments.head
           assert(dtoExperiment.testSpaceId == testSpaceId)
           assert(dtoExperiment.experimentId == experimentId)
-          assert(dtoExperiment.start == start)
-          assert(dtoExperiment.end == None)
+          assert(dtoExperiment.startIncl == start)
+          assert(dtoExperiment.endExcl == None)
           assert(dtoExperiment.bucketStart == 0L)
           assert(dtoExperiment.bucketEnd == SpaceSize / 2)
         }

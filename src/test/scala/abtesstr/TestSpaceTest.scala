@@ -38,13 +38,13 @@ class TestSpaceTest extends AnyFreeSpec with Matchers with ScalaCheckPropertyChe
     "with active experiments" - {
       val exp1 = ExperimentRun(
         experimentId = ExperimentId("exp1"),
-        period = TimePeriod(start = now.minusSeconds(100), end = None),
+        period = TimePeriod(startIncl = now.minusSeconds(100), endExcl = None),
         bucket = SpaceFragment(Point(0L), Point(SpaceSize / 4 - 1)),
       )
 
       val exp2 = ExperimentRun(
         experimentId = ExperimentId("exp2"),
-        period = TimePeriod(start = now.minusSeconds(50), end = None),
+        period = TimePeriod(startIncl = now.minusSeconds(50), endExcl = None),
         bucket = SpaceFragment(Point(SpaceSize / 2), Point(3L * (SpaceSize / 4))),
       )
 
@@ -78,13 +78,13 @@ class TestSpaceTest extends AnyFreeSpec with Matchers with ScalaCheckPropertyChe
       "should find next fit even if no contiguous space is available" in {
         val exp1 = ExperimentRun(
           experimentId = ExperimentId("exp1"),
-          period = TimePeriod(start = now.minusSeconds(100), end = None),
+          period = TimePeriod(startIncl = now.minusSeconds(100), endExcl = None),
           bucket = SpaceFragment(Point.zero, Point(10L)),
         )
 
         val exp2 = ExperimentRun(
           experimentId = ExperimentId("exp2"),
-          period = TimePeriod(start = now.minusSeconds(50), end = None),
+          period = TimePeriod(startIncl = now.minusSeconds(50), endExcl = None),
           bucket = SpaceFragment(Point(20L), Point(30L)),
         )
 
@@ -104,7 +104,7 @@ class TestSpaceTest extends AnyFreeSpec with Matchers with ScalaCheckPropertyChe
     "with expired experiments" - {
       val expiredExp = ExperimentRun(
         experimentId = ExperimentId("expired"),
-        period = TimePeriod(start = now.minusSeconds(200), end = Some(now.minusSeconds(100))),
+        period = TimePeriod(startIncl = now.minusSeconds(200), endExcl = Some(now.minusSeconds(100))),
         bucket = SpaceFragment(Point(0L), Point(SpaceSize / 2)),
       )
 

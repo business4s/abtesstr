@@ -112,7 +112,7 @@ case class RawABModel(spaces: Map[TestSpaceId, TestSpace], hasher: Hasher) exten
                      testSpaceId,
                      space.copy(experiments = space.experiments.map {
                        case e if e.experimentId == experimentId && e.period.isActive(finishTime) =>
-                         e.copy(period = e.period.copy(end = Some(finishTime)))
+                         e.copy(period = e.period.copy(endExcl = Some(finishTime)))
                        case e                                                                    => e
                      }),
                    )
@@ -122,7 +122,7 @@ case class RawABModel(spaces: Map[TestSpaceId, TestSpace], hasher: Hasher) exten
   def trim(before: Option[Instant]): TemporalContext => RawABModel = ctx => {
     val cutoff  = before.getOrElse(ctx.now())
     val updated = spaces.view
-      .mapValues { ns => ns.copy(experiments = ns.experiments.filter(e => e.period.end.forall(_.isAfter(cutoff)))) }
+      .mapValues { ns => ns.copy(experiments = ns.experiments.filter(e => e.period.endExcl.forall(_.isAfter(cutoff)))) }
       .toMap
       .filter((_, space) => space.experiments.nonEmpty)
 
@@ -136,6 +136,8 @@ case class RawABModel(spaces: Map[TestSpaceId, TestSpace], hasher: Hasher) exten
       start: Option[Instant],
       end: Option[Instant],
   ): TemporalContext => Either[ResizeExperimentError, RawABModel] = ctx => {
+    // We could theoretically be more precise, e.g., only add a fragment when upsizing,
+    // but finishing and starting should lead to less fragmentation
     val fixedCtx       = TemporalContext.fixed(ctx.now())
     val effectiveStart = start.getOrElse(fixedCtx.now())
     for {
@@ -163,8 +165,8 @@ case class RawABModel(spaces: Map[TestSpaceId, TestSpace], hasher: Hasher) exten
         ABModelDTO.Experiment(
           testSpaceId = ns.id,
           experimentId = e.experimentId,
-          start = e.period.start,
-          end = e.period.end,
+          startIncl = e.period.startIncl,
+          endExcl = e.period.endExcl,
           bucketStart = e.bucket.start,
           bucketEnd = e.bucket.end,
         )
@@ -180,7 +182,7 @@ object RawABModel {
     val spaces: Map[TestSpaceId, TestSpace] =
       dto.experiments
         .groupMap(x => TestSpaceId(x.testSpaceId))(e => {
-          val period = TimePeriod(e.start, e.end)
+          val period = TimePeriod(e.startIncl, e.endExcl)
           val bucket = SpaceFragment(Point(e.bucketStart), Point(e.bucketEnd))
           ExperimentRun(ExperimentId(e.experimentId), period, bucket)
         })

@@ -27,12 +27,12 @@ object MermaidRenderer {
     for ((spaceId, exps) <- experimentsBySpace) {
       lines += s""
       lines += s"    section $spaceId"
-      for (exp <- exps.sortBy(_.start)) {
+      for (exp <- exps.sortBy(_.startIncl)) {
         val percent = formatPercent(exp.bucketStart, exp.bucketEnd)
         val label = s"${exp.experimentId} ($percent)"
         val taskId = s"${spaceId}_${exp.experimentId}".replaceAll("[^a-zA-Z0-9_]", "_")
-        val start = formatDate(exp.start)
-        val end = exp.end.map(formatDate).getOrElse("3d")
+        val start = formatDate(exp.startIncl)
+        val end = exp.endExcl.map(formatDate).getOrElse("3d")
         lines += s"    $label :$taskId, $start, $end"
       }
     }

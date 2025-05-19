@@ -100,12 +100,11 @@ object Point {
 }
 
 // start inclusive, end exclusive
-// TODO rethink
-case class TimePeriod(start: Instant, end: Option[Instant]) {
-  Predef.assert(end.forall(_.isAfter(start)), "end must be after start")
+case class TimePeriod(startIncl: Instant, endExcl: Option[Instant]) {
+  Predef.assert(endExcl.forall(_.isAfter(startIncl)), "end must be after start")
 
   def isActive(at: Instant): Boolean =
-    !at.isBefore(start) && end.forall(at.isBefore)
+    !at.isBefore(startIncl) && endExcl.forall(at.isBefore)
 }
 
 val SpaceSize: Long = Long.MaxValue

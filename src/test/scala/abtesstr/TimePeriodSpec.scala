@@ -14,7 +14,7 @@ class TimePeriodSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyCh
     val after  = now.plusSeconds(100)
 
     "with no end date" - {
-      val period = TimePeriod(start = before, end = None)
+      val period = TimePeriod(startIncl = before, endExcl = None)
 
       "should be active at or after start time" in {
         assert(period.isActive(before))
@@ -28,7 +28,7 @@ class TimePeriodSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyCh
     }
 
     "with end date" - {
-      val period = TimePeriod(start = before, end = Some(after))
+      val period = TimePeriod(startIncl = before, endExcl = Some(after))
 
       "should be active between start and end time" in {
         assert(period.isActive(before))
@@ -47,7 +47,7 @@ class TimePeriodSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyCh
     }
 
     "with start and end at the same time" - {
-      val period = TimePeriod(start = now, end = Some(now))
+      val period = TimePeriod(startIncl = now, endExcl = Some(now))
 
       "should not be active at any time" in {
         assert(period.isActive(now.minusSeconds(1)))
@@ -60,7 +60,7 @@ class TimePeriodSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyCh
 
       "should fail" in {
         assertThrows[Exception] {
-          TimePeriod(start = after, end = Some(before))
+          TimePeriod(startIncl = after, endExcl = Some(before))
         }
       }
     }

@@ -18,15 +18,15 @@ object HtmlRenderer {
 
     model.experiments.zipWithIndex.map { case (exp, idx) =>
       val progress = ((BigInt(exp.bucketEnd) - BigInt(exp.bucketStart)) * 100 / LONG_MAX).toDouble
-      val endDate  = exp.end.getOrElse(Instant.now().plusSeconds(5 * 24 * 60 * 60).toString)
+      val endDate  = exp.endExcl.getOrElse(Instant.now().plusSeconds(5 * 24 * 60 * 60).toString)
 
       GanttTask(
         id = s"exp-$idx",
-        name = s"${exp.testSpaceId}: ${exp.experimentId}${if (exp.end.isEmpty) " (ongoing)" else ""}",
-        start = exp.start.toString,
+        name = s"${exp.testSpaceId}: ${exp.experimentId}${if (exp.endExcl.isEmpty) " (ongoing)" else ""}",
+        start = exp.startIncl.toString,
         end = endDate.toString,
         progress = progress,
-        customClass = if (exp.end.isEmpty) "indefinite-task" else "",
+        customClass = if (exp.endExcl.isEmpty) "indefinite-task" else "",
       )
     }
   }
